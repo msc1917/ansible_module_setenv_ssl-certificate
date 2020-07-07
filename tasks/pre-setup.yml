@@ -1,0 +1,14 @@
+---
+- name: "Generate Directories"
+  file:
+    path: "{{ item }}"
+    owner: "{{ default_user.ssl.user }}"
+    group: "{{ default_group.ssl.group }}"
+    state: directory
+    mode: 0755
+  with_items:
+    - "{{ default_path.data_path }}"
+    - "{{ default_path.data_path }}/ssl"
+    - "{{ default_path.data_path }}/ssl/private"
+    - "{{ default_path.data_path }}/ssl/public"
+    - "{{ default_path.data_path }}/ssl/csr"

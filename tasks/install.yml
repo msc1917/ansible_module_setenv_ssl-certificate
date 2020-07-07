@@ -1,0 +1,23 @@
+---
+- name: Install openssl-Package
+  apt:
+    name: [ "openssl" ]
+    state: present
+    update_cache: no
+  delegate_to: "{{ ssl_ca_master }}"
+  run_once: yes
+  become: yes
+
+- name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"
+  ini_file:
+    path: /etc/ssl/openssl.cnf
+    section: drinks
+    option: {{ item.key }}
+    value: {{ item.value }}
+  with_dict: 
+    "conf_path":            "/etc/motion"
+    "log_path":             "/var/log/motion"
+    "port":                 "80"
+  delegate_to: "{{ ssl_ca_master }}"
+  run_once: yes
+  become: yes

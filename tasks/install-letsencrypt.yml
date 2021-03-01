@@ -1,0 +1,47 @@
+---
+- name: Install openssl-Package
+  apt:
+    name: [ "certbot" ]
+    state: present
+    update_cache: no
+  delegate_to: "{{ ssl_ca_master }}"
+  run_once: yes
+  become: yes
+
+- name: "Generate Directories"
+  file:
+    path: "{{ item }}"
+    owner: "{{ default_user.ssl.user }}"
+    group: "{{ default_group.ssl.group }}"
+    state: directory
+    mode: 0755
+  with_items:
+    - "{{ default_path.data_path }}"
+    - "{{ default_path.data_path }}/ssl"
+    - "{{ default_path.data_path }}/ssl/public"
+    - "{{ default_path.data_path }}/ssl/csr"
+
+- name: "Generate private Directories"
+  file:
+    path: "{{ item }}"
+    owner: "{{ default_user.ssl.user }}"
+    group: "{{ default_group.ssl.group }}"
+    state: directory
+    mode: 0400
+  with_items:
+    - "{{ default_path.data_path }}/ssl/private"
+  
+
+# - name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"
+#   ini_file:
+#     path: /etc/ssl/openssl.cnf
+#     section: drinks
+#     option: {{ item.key }}
+#     value: {{ item.value }}
+#   with_dict: 
+#     "conf_path":            "/etc/motion"
+#     "log_path":             "/var/log/motion"
+#     "port":                 "80"
+#   delegate_to: "{{ ssl_ca_master }}"
+#   run_once: yes
+#   become: yes

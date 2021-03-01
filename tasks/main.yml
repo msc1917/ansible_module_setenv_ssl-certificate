@@ -1,1 +1,6 @@
 ---
+- name: Install openssl
+  ansible.builtin.include_tasks: install.yml
+  when:
+    - openssl is defined
+    - ssl_certificate_authority in services

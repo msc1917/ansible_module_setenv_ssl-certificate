@@ -11,10 +11,6 @@
   ansible.builtin.debug: 
     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list']
 
-- name: List global table ssl_fqhn_to_domainalias_list
-  ansible.builtin.debug: 
-    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_fqhn_to_domainalias_list']
-
 
 # - ansible.builtin.set_fact: 
 #     ssl_nw_device_name: "{{ ansible_facts['interfaces'] | difference(['lo']) }}"

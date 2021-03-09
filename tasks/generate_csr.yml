@@ -1,7 +1,21 @@
 ---
-- debug: var=hostvars['interfaces']
+- name: List global table ssl_mac_address_list
+  ansible.builtin.debug: 
+    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list']
 
-- set_fact: 
-  ip_address_list: "{{ hostvars['interfaces'] | difference(['lo']) }}"
+- name: List global table ssl_dev_name_to_ip_address_list
+  ansible.builtin.debug: 
+    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list']
 
-- debug: var=ip_address_list
+- name: List global table ssl_dev_name_to_domainname_list
+  ansible.builtin.debug: 
+    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list']
+
+# - ansible.builtin.set_fact: 
+#     ssl_nw_device_name: "{{ ansible_facts['interfaces'] | difference(['lo']) }}"
+
+# - ansible.builtin.set_fact: 
+#     ssl_nw_ip_addresses: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts[ssl_nw_devices[0]]['macaddress']]] }}"
+
+# - ansible.builtin.debug: 
+#     var: ssl_nw_ip_addresses

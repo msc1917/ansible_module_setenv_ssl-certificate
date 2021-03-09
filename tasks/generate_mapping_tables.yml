@@ -1,0 +1,41 @@
+---
+- name: Generate mapping mac_address to dev_name 
+  ansible.builtin.set_fact: 
+    ssl_mac_address_list: "{{ ssl_mac_address_list|default({}) | combine( {item.mac_address: item.dev_name} ) }}"
+  with_items:
+    - "{{ dhcp_config }}"
+  when: 
+    - "item.mac_address is not false"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: true
+
+- name: Generate mapping dev_name to ip_addresses 
+  ansible.builtin.set_fact: 
+    ssl_dev_name_to_ip_address_list: "{{ ssl_dev_name_to_ip_address_list|default({}) | combine({item.dev_name: ssl_dev_name_to_ip_address_list[item.dev_name]|default([]) + [item.ip_address]}) }}"
+  with_items:
+    - "{{ dhcp_config }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: true
+
+- name: Generate mapping dev_name to domain names 
+  ansible.builtin.set_fact: 
+    ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({item.dev_name: ssl_dev_name_to_domainname_list[item.dev_name]|default([]) + [item.fqhn_domain]}) }}"
+  with_items:
+    - "{{ dhcp_config }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: true
+
+
+
+# - name: Populate mapping dev_name to domain names with CNAMES 
+#   ansible.builtin.set_fact: 
+#     ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({item.dev_name: ssl_dev_name_to_domainname_list[item.dev_name]|default([]) + [item.forwarded]}) }}"
+#   with_items:
+#     - "{{ dns_cname_config }}"
+#   with_dict:
+#     - "{{ ssl_dev_name_to_domainname_list }}"
+#   when:
+#     - item.fqhn_domain in value
+#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   run_once: true
+

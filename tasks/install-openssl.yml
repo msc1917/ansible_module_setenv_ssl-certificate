@@ -4,33 +4,55 @@
     name: [ "openssl" ]
     state: present
     update_cache: no
-  delegate_to: "{{ ssl_ca_master }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once: yes
   become: yes
 
-- name: "Generate Directories"
+- name: "Generate CA-Directories"
   file:
     path: "{{ item }}"
     owner: "{{ default_user.ssl.user }}"
-    group: "{{ default_group.ssl.group }}"
+    group: "{{ default_user.ssl.group }}"
     state: directory
     mode: 0755
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: yes
+  become: yes
   with_items:
     - "{{ default_path.data_path }}"
-    - "{{ default_path.data_path }}/ssl"
-    - "{{ default_path.data_path }}/ssl/public"
-    - "{{ default_path.data_path }}/ssl/csr"
+    - "{{ default_path.data_path }}/ssl-ca"
+    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}"
+    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/public"
+    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/csr"
 
-- name: "Generate private Directories"
+- name: "Generate private CA-Directories"
   file:
     path: "{{ item }}"
     owner: "{{ default_user.ssl.user }}"
-    group: "{{ default_group.ssl.group }}"
+    group: "{{ default_user.ssl.group }}"
     state: directory
-    mode: 0400
+    mode: 0700
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: yes
+  become: yes
   with_items:
-    - "{{ default_path.data_path }}/ssl/private"
+    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/private"
   
+- name: "Generate Export-Directories"
+  file:
+    path: "{{ item }}"
+    owner: "root"
+    group: "root"
+    state: directory
+    mode: 0755
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: yes
+  become: yes
+  with_items:
+    - "srv/ssl-ca"
+    - "srv/ssl-ca/{{ ssl_certificate.organizationName }}"
+    - "srv/ssl-ca/{{ ssl_certificate.organizationName }}/public"
+    - "srv/ssl-ca/{{ ssl_certificate.organizationName }}/csr"
 
 # - name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"
 #   ini_file:
@@ -42,6 +64,6 @@
 #     "conf_path":            "/etc/motion"
 #     "log_path":             "/var/log/motion"
 #     "port":                 "80"
-#   delegate_to: "{{ ssl_ca_master }}"
+#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
 #   run_once: yes
 #   become: yes

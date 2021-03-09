@@ -1,0 +1,7 @@
+---
+- debug: var=hostvars['interfaces']
+
+- set_fact: 
+  ip_address_list: "{{ hostvars['interfaces'] | difference(['lo']) }}"
+
+- debug: var=ip_address_list

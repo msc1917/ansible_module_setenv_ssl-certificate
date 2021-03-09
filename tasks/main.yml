@@ -2,22 +2,28 @@
 - name: Install openssl mit openssl
   include_tasks: install-openssl.yml
   when:
-    - openssl is defined
     - ssl_certificate is defined
-    - ssl_certificate.type == "openssl"
-    - ssl_certificate_authority in services
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
+    - (services is defined) and ('ssl_certificate_authority' in services)
+    # - services is defined
+    # - 'ssl_certificate_authority' in services
 
 - name: Install openssl mit letsencrypt
   include_tasks: install-letsencrypt.yml
   when:
-    - openssl is defined
     - ssl_certificate is defined
-    - ssl_certificate.type == "letsencrypt"
-    - ssl_certificate_authority in services
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "letsencrypt"
+    - (services is defined) and ('ssl_certificate_authority' in services)
 
-- name: Generate root-certificate
-  include_tasks: generate_master_certificate.yml
-  when:
-    - openssl is defined
-    - ssl_certificate is defined
-    - ssl_certificate_authority in services
+- name: Generate CSR for Certificate Authority
+  include_tasks: generate_csr.yml
+
+
+# - name: Generate root-certificate
+#   include_tasks: generate_master_certificate.yml
+#   when:
+#     - ssl_certificate is defined
+#     - ssl_certificate_authority is defined
+#     - ssl_certificate_authority in services

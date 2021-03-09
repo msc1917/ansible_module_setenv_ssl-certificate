@@ -17,25 +17,87 @@
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once: true
 
-- name: Generate mapping dev_name to domain names 
+# Versuch 1: Generiere Domain-Liste, funktioniert so weit...
+# 
+# Probleme bei der Weiterverarbeitung...
+# Probleme beim Mapping von dns_cname_config und dns_cluster_config zu den dev_names...
+# 
+###
+#
+# - name: Generate mapping dev_name to domain names 
+#   ansible.builtin.set_fact: 
+#     ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({item.dev_name: ssl_dev_name_to_domainname_list[item.dev_name]|default([]) + [item.fqhn_domain]}) }}"
+#   with_items:
+#     - "{{ dhcp_config }}"
+#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   run_once: true
+#
+# - name: Generate mapping fqhn_domain to domain names (dns_cname_config)
+#   ansible.builtin.set_fact: 
+#     ssl_fqhn_to_domainalias_list: "{{ ssl_fqhn_to_domainalias_list|default({}) | combine({item.forwarded: ssl_dev_name_to_domainname_list[item.forwarded]|default([]) + [item.fqhn_domain]}) }}"
+#   with_items:
+#     - "{{ dns_cname_config }}"
+#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   run_once: true
+#
+# - name: Generate mapping fqhn_domain to domain names (dns_cluster_config)
+#   ansible.builtin.set_fact: 
+#     ssl_fqhn_to_domainalias_list: "{{ ssl_fqhn_to_domainalias_list|default({}) | combine({item[1]: ssl_dev_name_to_domainname_list[item[1]]|default([]) + [item[0].fqhn_domain]}) }}"
+#   with_items:
+#     - "{{ dns_cluster_config | subelements('forwarded', skip_missing=True) }}"
+#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   run_once: true
+#
+###
+
+# Versuch 2: Generiere Domain-Liste, funktioniert so weit...
+# 
+# Fehlerhafte Ausgabe...
+# Beim Mapping dns_cname_config und dns_cluster_config werden mehrfachzuweisungen nicht berücksichtigt
+# 
+###
+#
+- name: Generate mapping domain names to dev_name (dhcp_config)
   ansible.builtin.set_fact: 
-    ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({item.dev_name: ssl_dev_name_to_domainname_list[item.dev_name]|default([]) + [item.fqhn_domain]}) }}"
+    ssl_domainname_list_to_dev_name: "{{ ssl_domainname_list_to_dev_name|default({}) | combine({item.fqhn_domain: item.dev_name}) }}"
   with_items:
     - "{{ dhcp_config }}"
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once: true
 
+- name: Generate mapping fqhn_domain to dev_name (dns_cluster_config)
+  ansible.builtin.set_fact: 
+    ssl_domainname_list_to_dev_name: "{{ ssl_domainname_list_to_dev_name|default({}) | combine({ item[0].fqhn_domain: ssl_domainname_list_to_dev_name[item[1]] }) }}"
+  with_items:
+    - "{{ dns_cluster_config | subelements('forwarded', skip_missing=True) }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: true
+
+- name: Generate mapping fqhn_domain to dev_name (dns_cname_config)
+  ansible.builtin.set_fact: 
+    ssl_domainname_list_to_dev_name: "{{ ssl_domainname_list_to_dev_name|default({}) | combine({ item.fqhn_domain: ssl_domainname_list_to_dev_name[item.forwarded] }) }}"
+  with_items:
+    - "{{ dns_cname_config }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: true
+
+- name: Merging mapping dev_name to domain names (dhcp_config, dns_cluster_config, dns_cname_config)
+  ansible.builtin.set_fact: 
+    ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({item.value: ssl_dev_name_to_domainname_list[item.value]|default([]) + [item.key] }) }}"
+  with_dict:
+    - "{{ ssl_domainname_list_to_dev_name }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: true
+#
+###
 
 
-# - name: Populate mapping dev_name to domain names with CNAMES 
+# - name: Merge mapping dev_name to domain names (dns_cname_config, dns_cluster_config)
 #   ansible.builtin.set_fact: 
-#     ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({item.dev_name: ssl_dev_name_to_domainname_list[item.dev_name]|default([]) + [item.forwarded]}) }}"
-#   with_items:
-#     - "{{ dns_cname_config }}"
+#     ssl_dev_name_to_domainname_list: "{{ ssl_dev_name_to_domainname_list|default({}) | combine({key: ssl_dev_name_to_domainname_list[key]|default([]) + value }) }}"
 #   with_dict:
 #     - "{{ ssl_dev_name_to_domainname_list }}"
 #   when:
-#     - item.fqhn_domain in value
+#     - "{{ value }}"
 #   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
 #   run_once: true
-

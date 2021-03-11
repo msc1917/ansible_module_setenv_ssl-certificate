@@ -1,16 +1,23 @@
 ---
-- name: List global table ssl_mac_address_list
-  ansible.builtin.debug: 
-    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list']
+# Debug-Output for the mapping-tables
 
-- name: List global table ssl_dev_name_to_ip_address_list
-  ansible.builtin.debug: 
-    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list']
+# - name: List global table ssl_mac_address_list
+#   ansible.builtin.debug: 
+#     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list']
 
-- name: List global table ssl_dev_name_to_domainname_list
-  ansible.builtin.debug: 
-    var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list']
+# - name: List global table ssl_dev_name_to_ip_address_list
+#   ansible.builtin.debug: 
+#     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list']
 
+# - name: List global table ssl_dev_name_to_domainname_list
+#   ansible.builtin.debug: 
+#     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list']
+
+- name: Set actual devicename, ip-addresses and domains
+  setenv:
+    act_dev_name: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]
+    act_ip_address: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]]
+    act_dommain_list: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]]
 
 # - ansible.builtin.set_fact: 
 #     ssl_nw_device_name: "{{ ansible_facts['interfaces'] | difference(['lo']) }}"

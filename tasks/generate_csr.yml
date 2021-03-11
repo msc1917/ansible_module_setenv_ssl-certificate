@@ -13,17 +13,30 @@
 #   ansible.builtin.debug: 
 #     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list']
 
+
 - name: Set actual devicename, ip-addresses and domains
-  setenv:
-    act_dev_name: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]
-    act_ip_address: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]]
-    act_dommain_list: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]]
+  ansible.builtin.set_fact:
+    act_dev_name: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']] }}"
+    act_ip_address: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
+    act_dommain_list: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
 
-# - ansible.builtin.set_fact: 
-#     ssl_nw_device_name: "{{ ansible_facts['interfaces'] | difference(['lo']) }}"
+- name: Add serveNet_ip if exists
+  ansible.builtin.set_fact:
+    act_ip_address: "{{ act_ip_address|default([]) + [serveNet_ip] | unique | sort }}"
+  when:
+    - serveNet_ip is defined
 
-# - ansible.builtin.set_fact: 
-#     ssl_nw_ip_addresses: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts[ssl_nw_devices[0]]['macaddress']]] }}"
 
-# - ansible.builtin.debug: 
-#     var: ssl_nw_ip_addresses
+# Debug-Output für die Wertzuweisung
+
+# - name: Show actual device-name
+#   ansible.builtin.debug: 
+#     var: act_dev_name
+
+# - name: Show actual IP-adresses
+#   ansible.builtin.debug: 
+#     var: act_ip_address
+
+# - name: Show actual domain-names
+#   ansible.builtin.debug: 
+#     var: act_dommain_list

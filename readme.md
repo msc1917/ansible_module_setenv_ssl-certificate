@@ -13,3 +13,7 @@ Richtet die Software für folgende Services ein:
 * **files:** Files, welche von der Rolle benötigt werden könnten
 * **handlers:** Ansible-Handler-Definitionen
 * **meta:** Meta-Daten für die Rolle
+
+
+
+## Todo Root-CA anlegen:

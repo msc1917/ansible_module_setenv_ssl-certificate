@@ -20,23 +20,24 @@
     act_ip_address: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
     act_dommain_list: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
 
-- name: Add serveNet_ip if exists
+- name: Add serveNet_ip and serveNet_domain if exists
   ansible.builtin.set_fact:
     act_ip_address: "{{ act_ip_address|default([]) + [serveNet_ip] | unique | sort }}"
+    act_dommain_list: "{{ act_dommain_list|default([]) + [inventory_hostname_short.rstrip('.') + '.' + subnet.serveNet.domain_add.rstrip('.') + '.' + network.domain] | unique | sort }}"
   when:
     - serveNet_ip is defined
 
 
 # Debug-Output für die Wertzuweisung
 
-# - name: Show actual device-name
-#   ansible.builtin.debug: 
-#     var: act_dev_name
+- name: Show actual device-name
+  ansible.builtin.debug: 
+    var: act_dev_name
 
-# - name: Show actual IP-adresses
-#   ansible.builtin.debug: 
-#     var: act_ip_address
+- name: Show actual IP-adresses
+  ansible.builtin.debug: 
+    var: act_ip_address
 
-# - name: Show actual domain-names
-#   ansible.builtin.debug: 
-#     var: act_dommain_list
+- name: Show actual domain-names
+  ansible.builtin.debug: 
+    var: act_dommain_list

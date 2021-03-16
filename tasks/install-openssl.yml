@@ -10,34 +10,80 @@
 
 - name: "Generate CA-Directories"
   file:
-    path: "{{ item }}"
+    path: "{{ item.directory }}"
     owner: "{{ default_user.ssl.user }}"
     group: "{{ default_user.ssl.group }}"
     state: directory
-    mode: 0755
+    mode: "{{ item.mode }}"
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once: yes
   become: yes
   with_items:
-    - "{{ default_path.data_path }}"
-    - "{{ default_path.data_path }}/ssl-ca"
-    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}"
-    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/public"
-    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/csr"
+    - { "directory": "{{ default_path.data_path }}", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/certs", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/newcerts", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/csr", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/crl", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/private", "mode": "0700" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/certs", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/newcerts", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/csr", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/crl", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/private", "mode": "0700" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/server", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/server/certs", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/server/newcerts", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/server/csr", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/server/crl", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/server/private", "mode": "0700" }
 
-- name: "Generate private CA-Directories"
+- name: "Generate index-files"
   file:
-    path: "{{ item }}"
+    path: "{{ item.file }}"
     owner: "{{ default_user.ssl.user }}"
     group: "{{ default_user.ssl.group }}"
-    state: directory
-    mode: 0700
+    state: touch
+    mode: "{{ item.mode }}"
+    modification_time: preserve
+    access_time: preserve
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once: yes
   become: yes
   with_items:
-    - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/private"
-  
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/index", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/index", "mode": "0600" }
+
+- name: Generate Random-Files
+  shell: 
+    cmd: openssl rand -hex 16 > "{{ item.file }}"
+    creates: "{{ item.file }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: yes
+  become: yes
+  become_user: "{{ default_user.ssl.user }}"
+  with_items:
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/serial", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/serial", "mode": "0600" }
+
+- name: "Set permissions to index-files"
+  file:
+    path: "{{ item.file }}"
+    owner: "{{ default_user.ssl.user }}"
+    group: "{{ default_user.ssl.group }}"
+    mode: "{{ item.mode }}"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once: yes
+  become: yes
+  with_items:
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/root-ca/serial", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate.organizationName }}/intermediate-ca/serial", "mode": "0600" }
+
+
+
 - name: "Generate Export-Directories"
   file:
     path: "{{ item }}"
@@ -53,6 +99,8 @@
     - "srv/ssl-ca/{{ ssl_certificate.organizationName }}"
     - "srv/ssl-ca/{{ ssl_certificate.organizationName }}/public"
     - "srv/ssl-ca/{{ ssl_certificate.organizationName }}/csr"
+    - "srv/ssl-ca/{{ ssl_certificate.organizationName }}/crl"
+    - "srv/ssl-ca/{{ ssl_certificate.organizationName }}/ca-certificate"
 
 # - name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"
 #   ini_file:

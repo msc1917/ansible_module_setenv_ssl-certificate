@@ -1,18 +1,56 @@
 ---
-- name: Generate a Self Signed OpenSSL certificate
-  openssl_certificate:
-    path: /etc/ssl/crt/baikonur.at.crt
-    privatekey_path: "{{ default_path.data_path }}/ssl/private/{{ network.domain }}.pem"
-    csr_path: "{{ default_path.data_path }}/ssl/csr/{{ network.domain }}.csr"
-    provider: selfsigned
-  delegate_to: "{{ ssl_ca_master }}"
-  run_once: yes
-  become: "{{ default_user.ssl.user }}"
+- name: Generate private key for intermediate-certificate
+  community.crypto.openssl_privatekey:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
+    type:                     "{{ ssl_certificate_authority.ca_definition.layer2.type }}"
+    cipher:                   "{{ ssl_certificate_authority.ca_definition.layer2.encryption }}"
+    size:                     "{{ ssl_certificate_authority.ca_definition.layer2.bitlength }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
 
-- name: Set chmod on private key
-  file:
-    path: "{{ default_path.data_path }}/ssl/private"
-    mode: "0400"
-    owner: "{{ default_user.ssl.user }}"
-    group: "{{ default_user.ssl.group }}"
+- name: Generate CSR for intermediate-certificate
+  community.crypto.openssl_csr:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/csr/{{ item }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
+    common_name:              "ca.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
+    email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
+    country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
+    state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
+    locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
+
+- name: Sign private Key with root-key for intermediate-certificate
+  community.crypto.x509_certificate:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/csr/{{ item }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
+    provider:                 "selfsigned"
+    selfsigned_not_after:     "+{{ ssl_certificate_authority.ca_definition.layer2.keeptime }}d"
+    selfsigned_not_before:    "+0d"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "444"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
 

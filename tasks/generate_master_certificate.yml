@@ -4,14 +4,14 @@
 
 - name: Generate private key for root-certificate
   community.crypto.openssl_privatekey:
-    path:                   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
-    passphrase:             "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
-    type:                   "{{ ssl_certificate_authority.ca_definition.layer1.type }}"
-    cipher:                 "{{ ssl_certificate_authority.ca_definition.layer1.encryption }}"
-    size:                   "{{ ssl_certificate_authority.ca_definition.layer1.bitlength }}"
-    owner:                  "{{ ssl_certificate_authority.ssl_user }}"
-    group:                  "{{ ssl_certificate_authority.ssl_group }}"
-    mode:                   "400"
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
+    type:                     "{{ ssl_certificate_authority.ca_definition.layer1.type }}"
+    cipher:                   "{{ ssl_certificate_authority.ca_definition.layer1.encryption }}"
+    size:                     "{{ ssl_certificate_authority.ca_definition.layer1.bitlength }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
@@ -19,19 +19,19 @@
 
 - name: Generate CSR for root-certificate
   community.crypto.openssl_csr:
-    path:                   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
-    privatekey_path:        "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
-    privatekey_passphrase:  "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
-    common_name:            "ca.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
-    organization_name:      "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
-    organization_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationUnitName }}"
-    email_address:          "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
-    country_name:           "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
-    state_or_province_name: "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
-    locality_name:          "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
-    owner:                  "{{ ssl_certificate_authority.ssl_user }}"
-    group:                  "{{ ssl_certificate_authority.ssl_group }}"
-    mode:                   "400"
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
+    common_name:              "ca.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
+    email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
+    country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
+    state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
+    locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
@@ -39,14 +39,36 @@
 
 - name: Sign private Key with itself for self-signed root-certificate
   community.crypto.x509_certificate:
-    path:                   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
-    privatekey_path:        "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
-    csr_path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
-    provider:               "selfsigned"
-    owner:                  "{{ ssl_certificate_authority.ssl_user }}"
-    group:                  "{{ ssl_certificate_authority.ssl_group }}"
-    mode:                   "400"
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
+    provider:                 "selfsigned"
+    # invalid_at:               "{{ '%Y%m%d%H%M%S' | strftime( ( ansible_date_time.epoch | int ) + ( 86400 * ( ssl_certificate_authority.ca_definition.layer1.keeptime | int ) ) ) }}Z"
+    selfsigned_not_after:     "+{{ ssl_certificate_authority.ca_definition.layer1.keeptime }}d"
+    selfsigned_not_before:    "+0d"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "444"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
   # become-user: "{{ ssl_certificate_authority.ssl_user }}"
+
+- name: Copy certificate to smb-space
+  ansible.builtin.copy:
+    src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:  "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    owner: "root"
+    group: "root"
+    mode:  "0644"
+    remote_src: yes
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+
+
+# - name: Generate public key from root-certificate
+#   community.crypto.openssl_publickey:
+#     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+#     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"

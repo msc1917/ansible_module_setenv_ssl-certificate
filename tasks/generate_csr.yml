@@ -30,14 +30,14 @@
 
 # Debug-Output für die Wertzuweisung
 
-- name: Show actual device-name
-  ansible.builtin.debug: 
-    var: act_dev_name
+# - name: Show actual device-name
+#   ansible.builtin.debug: 
+#     var: act_dev_name
 
-- name: Show actual IP-adresses
-  ansible.builtin.debug: 
-    var: act_ip_address
+# - name: Show actual IP-adresses
+#   ansible.builtin.debug: 
+#     var: act_ip_address
 
-- name: Show actual domain-names
-  ansible.builtin.debug: 
-    var: act_dommain_list
+# - name: Show actual domain-names
+#   ansible.builtin.debug: 
+#     var: act_dommain_list

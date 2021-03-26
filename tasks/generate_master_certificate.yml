@@ -1,18 +1,52 @@
 ---
-- name: Generate a Self Signed OpenSSL certificate
-  openssl_certificate:
-    path: /etc/ssl/crt/ansible.com.crt
-    privatekey_path: "{{ default_path.data_path }}/ssl/private/{{ network.domain }}.pem"
-    csr_path: "{{ default_path.data_path }}/ssl/csr/{{ network.domain }}.csr"
-    provider: selfsigned
-  delegate_to: "{{ ssl_ca_master }}"
-  run_once: yes
-  become: yes
+  # command: "openssl genrsa -out RootCA.key 4096"
+  # command: "openssl req -new -x509 -days 1826 -key RootCA.key -out RootCA.crt"
 
-- name: Set chmod on private key
-  file:
-    path: "{{ default_path.data_path }}/ssl/private"
-    mode: "0400"
-    owner: "{{ default_user.ssl.user }}"
-    group: "{{ default_user.ssl.group }}"
+- name: Generate private key for root-certificate
+  community.crypto.openssl_privatekey:
+    path:                   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
+    passphrase:             "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
+    type:                   "{{ ssl_certificate_authority.ca_definition.layer1.type }}"
+    cipher:                 "{{ ssl_certificate_authority.ca_definition.layer1.encryption }}"
+    size:                   "{{ ssl_certificate_authority.ca_definition.layer1.bitlength }}"
+    owner:                  "{{ ssl_certificate_authority.ssl_user }}"
+    group:                  "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                   "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  # become-user: "{{ ssl_certificate_authority.ssl_user }}"
 
+- name: Generate CSR for root-certificate
+  community.crypto.openssl_csr:
+    path:                   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
+    privatekey_path:        "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
+    privatekey_passphrase:  "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
+    common_name:            "ca.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organization_name:      "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organization_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationUnitName }}"
+    email_address:          "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
+    country_name:           "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
+    state_or_province_name: "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
+    locality_name:          "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    owner:                  "{{ ssl_certificate_authority.ssl_user }}"
+    group:                  "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                   "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  # become-user: "{{ ssl_certificate_authority.ssl_user }}"
+
+- name: Sign private Key with itself for self-signed root-certificate
+  community.crypto.x509_certificate:
+    path:                   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
+    privatekey_path:        "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.pem"
+    csr_path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
+    provider:               "selfsigned"
+    owner:                  "{{ ssl_certificate_authority.ssl_user }}"
+    group:                  "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                   "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  # become-user: "{{ ssl_certificate_authority.ssl_user }}"

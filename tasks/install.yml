@@ -4,15 +4,15 @@
     name: [ "openssl" ]
     state: present
     update_cache: no
-  delegate_to: "{{ ssl_ca_master }}"
+  delegate_to: "{{ ssl_certificate_authority-ssl_ca_host }}"
   run_once: yes
   become: yes
 
 - name: "Generate Directories"
   file:
     path: "{{ item }}"
-    owner: "{{ default_user.ssl.user }}"
-    group: "{{ default_group.ssl.group }}"
+    owner: "{{ ssl_certificate_authority.ssl_user }}"
+    group: "{{ ssl_certificate_authority.ssl_group }}"
     state: directory
     mode: 0755
   with_items:
@@ -20,16 +20,22 @@
     - "{{ default_path.data_path }}/ssl"
     - "{{ default_path.data_path }}/ssl/public"
     - "{{ default_path.data_path }}/ssl/csr"
+  delegate_to: "{{ ssl_certificate_authority-ssl_ca_host }}"
+  run_once: yes
+  become: yes
 
 - name: "Generate private Directories"
   file:
     path: "{{ item }}"
-    owner: "{{ default_user.ssl.user }}"
-    group: "{{ default_group.ssl.group }}"
+    owner: "{{ ssl_certificate_authority.ssl_user }}"
+    group: "{{ ssl_certificate_authority.ssl_group }}"
     state: directory
     mode: 0400
   with_items:
     - "{{ default_path.data_path }}/ssl/private"
+  delegate_to: "{{ ssl_certificate_authority-ssl_ca_host }}"
+  run_once: yes
+  become: yes
   
 
 # - name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"

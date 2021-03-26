@@ -21,6 +21,7 @@
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
     common_name:              "ca.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
     email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
@@ -53,4 +54,5 @@
   become:       yes
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
-
+  register:     gen_intermediate_certificate
+ 

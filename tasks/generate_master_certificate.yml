@@ -53,6 +53,8 @@
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
+  register:     gen_root_certificate
+
   # become-user: "{{ ssl_certificate_authority.ssl_user }}"
 
 - name: Copy certificate to smb-space

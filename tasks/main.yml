@@ -1,23 +1,23 @@
 ---
-# - name: Install openssl mit openssl
-#   include_tasks: install-openssl.yml
-#   when:
-#     - ssl_certificate_authority is defined
-#     - ssl_certificate_authority.type == "openssl"
-#     - (services is defined) and ('ssl_certificate_authority' in services)
-#     # - services is defined
-#     # - 'ssl_certificate_authority' in services
+- name: Install openssl mit openssl
+  include_tasks: install-openssl.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
+    - (services is defined) and ('ssl_certificate_authority' in services)
+    # - services is defined
+    # - 'ssl_certificate_authority' in services
 
-# - name: Install openssl mit letsencrypt
-#   include_tasks: install-letsencrypt.yml
-#   when:
-#     - ssl_certificate_authority is defined
-#     - ssl_certificate_authority.type == "letsencrypt"
-#     - (services is defined) and ('ssl_certificate_authority' in services)
+- name: Install openssl mit letsencrypt
+  include_tasks: install-letsencrypt.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "letsencrypt"
+    - (services is defined) and ('ssl_certificate_authority' in services)
 
-# - name: Generate global mapping
-#   include_tasks: generate_mapping_tables.yml
-#   # no_log: true
+- name: Generate global mapping
+  include_tasks: generate_mapping_tables.yml
+  # no_log: true
 
 - name: Generate root-certificate with openssl
   include_tasks: generate_master_certificate.yml
@@ -34,6 +34,12 @@
     - ssl_certificate_authority.type == "openssl"
     - (services is defined) and ('ssl_certificate_authority' in services)
     - ssl_certificate_authority.create_master_certificate is true
+
+- name: Generate server-certificates with openssl
+  include_tasks: generate_server_certificate.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
 
 
 # - name: Generate CSR for Certificate Authority

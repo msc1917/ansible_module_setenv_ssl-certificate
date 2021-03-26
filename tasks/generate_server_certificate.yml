@@ -1,43 +1,173 @@
 ---
 # Debug-Output for the mapping-tables
-
 # - name: List global table ssl_mac_address_list
 #   ansible.builtin.debug: 
 #     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list']
-
 # - name: List global table ssl_dev_name_to_ip_address_list
 #   ansible.builtin.debug: 
 #     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list']
-
 # - name: List global table ssl_dev_name_to_domainname_list
 #   ansible.builtin.debug: 
 #     var: hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list']
 
-
 - name: Set actual devicename, ip-addresses and domains
   ansible.builtin.set_fact:
-    act_dev_name: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']] }}"
-    act_ip_address: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
-    act_dommain_list: "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
+    act_dev_name:             "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']] }}"
+    act_ip_address:           "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
+    act_dommain_list:         "{{ hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_mac_address_list'][ansible_facts['default_ipv4']['macaddress']]] | unique | sort }}"
 
 - name: Add serveNet_ip and serveNet_domain if exists
   ansible.builtin.set_fact:
-    act_ip_address: "{{ act_ip_address|default([]) + [serveNet_ip] | unique | sort }}"
-    act_dommain_list: "{{ act_dommain_list|default([]) + [inventory_hostname_short.rstrip('.') + '.' + subnet.serveNet.domain_add.rstrip('.') + '.' + network.domain] | unique | sort }}"
+    act_ip_address:           "{{ act_ip_address|default([]) + [serveNet_ip] | unique | sort }}"
+    act_dommain_list:         "{{ act_dommain_list|default([]) + [inventory_hostname_short.rstrip('.') + '.' + subnet.serveNet.domain_add.rstrip('.') + '.' + network.domain] | unique | sort }}"
   when:
     - serveNet_ip is defined
 
+- name: Generate private key for server-certificates
+  community.crypto.openssl_privatekey:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    type:                     "{{ ssl_certificate_authority.ca_definition.layer3.type }}"
+    cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
+    size:                     "{{ ssl_certificate_authority.ca_definition.layer3.bitlength }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+
+- name: Generate CSR for server-certificates
+  community.crypto.openssl_csr:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    common_name:              "{{ inventory_hostname }}"
+    authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
+    organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
+    email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
+    country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
+    state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
+    locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    subject_alt_name:         "{{ ( act_dommain_list | map('regex_replace', '^', 'DNS:') | list ) + ( act_ip_address | map('regex_replace', '^', 'IP:') | list ) }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  # with_dict:
+  #   dns_server:
+  #   - "{{ act_dommain_list }}"
+  #   - "{{ act_ip_address }}"
+
+- name: Sign private Key with root-key for server-certificates
+  community.crypto.x509_certificate:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
+    provider:                 "selfsigned"
+    selfsigned_not_after:     "+{{ ssl_certificate_authority.ca_definition.layer3.keeptime }}d"
+    selfsigned_not_before:    "+0d"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "444"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  register:     gen_server_certificate
+
+- name: Fetch private key file from ca-server
+  fetch: 
+    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Copy private key file to target-host
+  copy: 
+    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/etc/ssl/private/{{ local_filename }}.pem"
+    owner:     "root"
+    group:     "root"
+    mode:      "444"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Remove private file from temp-directory
+  ansible.builtin.file:
+    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    state:     absent
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Fetch certificate file from ca-server
+  fetch: 
+    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Copy certificate file to target-host
+  copy: 
+    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/etc/ssl/crt/{{ local_filename }}.pem"
+    owner:     "root"
+    group:     "root"
+    mode:      "444"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Remove certificate key file from temp-directory
+  ansible.builtin.file:
+    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    state:     absent
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Fetch certificate file from ca-server
+  fetch: 
+    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  run_once:    yes
+  when:        gen_server_certificate.changed
+
+- name: Copy certificate file to target-host
+  copy: 
+    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/etc/ssl/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    owner:     "root"
+    group:     "root"
+    mode:      "777"
+  become:      yes
+  when:        gen_server_certificate.changed
+
+- name: Remove certificate key file from temp-directory
+  ansible.builtin.file:
+    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    state:     absent
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  run_once:    yes
+  when:        gen_server_certificate.changed
+
+- name: Update CA Trust
+  command: "update-ca-trust extract"
+  become:  true
+  when:    gen_server_certificate.changed
 
 # Debug-Output für die Wertzuweisung
-
 # - name: Show actual device-name
 #   ansible.builtin.debug: 
 #     var: act_dev_name
-
 # - name: Show actual IP-adresses
 #   ansible.builtin.debug: 
 #     var: act_ip_address
-
 # - name: Show actual domain-names
 #   ansible.builtin.debug: 
 #     var: act_dommain_list

@@ -24,7 +24,7 @@
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
-    common_name:              "ca.{{ ssl_certificate_authority.ca_definition.layer1.common_name }}"
+    common_name:              "{{ ssl_certificate_authority.ca_definition.layer1.common_name }}"
     # common_name:              "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"

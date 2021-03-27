@@ -14,6 +14,11 @@ Richtet die Software für folgende Services ein:
 * **handlers:** Ansible-Handler-Definitionen
 * **meta:** Meta-Daten für die Rolle
 
+## Todos:
+* Certificate Chain funktioniert noch nicht
+* Server-Certificate-Files müssen in /srv verschoben werden
+* Samba integrieren
 
-
-## Todo Root-CA anlegen:
+## Checks:
+ openssl verify /home/schama/data/ssl-ca/baikonur.at/intermediate-ca/certs/intermediateCA.m19.baikonur.at.pem /etc/ssl/certs/rootCA.baikonur.at.pem /etc/ssl/crt/server-cert.pem
+ openssl x509 -in /etc/ssl/crt/server-cert.pem -text -noout

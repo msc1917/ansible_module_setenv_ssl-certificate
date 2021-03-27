@@ -56,6 +56,7 @@
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
     select_crypto_backend:    "cryptography"
+    ocsp_must_staple:         "true"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
   register:     gen_server_certificate
@@ -80,9 +81,29 @@
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "444"
     select_crypto_backend:    "cryptography"
+    return_content:           "yes"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  register:    server_certificate
+  when:        gen_server_certificate.changed
+
+- name: Generate PKCS12 file from server certificate
+  openssl_pkcs12:
+    action:             export
+    path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
+    friendly_name:      "{{ inventory_hostname }}"
+    privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+    certificate_path:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+    other_certificates: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "444"
+    state: present
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
   when:        gen_server_certificate.changed
+
 
 # If there are Problems with the local certificate files
 
@@ -209,3 +230,13 @@
 # - name: Show actual domain-names
 #   ansible.builtin.debug: 
 #     var: act_dommain_list
+
+
+- name: Show CSR content
+  ansible.builtin.debug: 
+    var: gen_server_certificate
+
+- name: Show Certificate content
+  ansible.builtin.debug: 
+    var: server_certificate
+  when:        gen_server_certificate.changed

@@ -35,6 +35,7 @@
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
     select_crypto_backend:    "cryptography"
+    ocsp_must_staple:         "true"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes

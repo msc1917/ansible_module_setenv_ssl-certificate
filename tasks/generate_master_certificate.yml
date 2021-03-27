@@ -7,11 +7,13 @@
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     passphrase:               "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer1.type }}"
-    cipher:                   "{{ ssl_certificate_authority.ca_definition.layer1.encryption }}"
+    cipher:                   "auto"
+    # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer1.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer1.bitlength }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
@@ -22,7 +24,8 @@
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/csr/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.csr"
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
-    common_name:              "ca.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    common_name:              "ca.{{ ssl_certificate_authority.ca_definition.layer1.common_name }}"
+    # common_name:              "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
     email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
@@ -32,9 +35,11 @@
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
+  register:     gen_root_certificate
   # become-user: "{{ ssl_certificate_authority.ssl_user }}"
 
 - name: Sign private Key with itself for self-signed root-certificate
@@ -50,11 +55,11 @@
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "444"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
-  register:     gen_root_certificate
-
+  when:         gen_root_certificate.changed
   # become-user: "{{ ssl_certificate_authority.ssl_user }}"
 
 - name: Copy certificate to smb-space
@@ -68,6 +73,7 @@
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
+  when:         gen_root_certificate.changed
 
 
 # - name: Generate public key from root-certificate

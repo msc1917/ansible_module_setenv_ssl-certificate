@@ -28,11 +28,13 @@
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
     passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer3.type }}"
-    cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
+    cipher:                   "auto"
+    # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer3.bitlength }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
 
@@ -53,8 +55,10 @@
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
+  register:     gen_server_certificate
   # with_dict:
   #   dns_server:
   #   - "{{ act_dommain_list }}"
@@ -72,9 +76,10 @@
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "444"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
-  register:     gen_server_certificate
+  when:        gen_server_certificate.changed
 
 # If there are Problems with the local certificate files
 
@@ -98,6 +103,9 @@
 #     state:     absent
 #   become:      yes
 #   when:        gen_server_certificate.changed
+
+
+# Distribute Keys to servers
 
 - name: Fetch private key file from ca-server
   fetch: 
@@ -171,6 +179,7 @@
     group:     "root"
     mode:      "777"
   become:      yes
+  notify:      refresh certificates
   when:        gen_server_certificate.changed
 
 - name: Remove certificate key file from temp-directory
@@ -182,10 +191,10 @@
   run_once:    yes
   when:        gen_server_certificate.changed
 
-- name: Update CA Trust
-  command: "update-ca-certificates extract"
-  become:  true
-  when:    gen_server_certificate.changed
+# - name: Update CA Trust
+#   command: "update-ca-certificates extract"
+#   become:  true
+#   when:    gen_server_certificate.changed
 
 # Debug-Output für die Wertzuweisung
 # - name: Show actual device-name

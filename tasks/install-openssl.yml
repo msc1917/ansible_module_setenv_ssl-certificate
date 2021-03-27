@@ -1,7 +1,7 @@
 ---
 - name: Install openssl-Package
   apt:
-    name: [ "openssl" ]
+    name: [ "openssl", "python3-cryptography" ]
     state: present
     update_cache: no
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"

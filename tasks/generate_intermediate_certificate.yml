@@ -1,14 +1,16 @@
 ---
 - name: Generate private key for intermediate-certificate
   community.crypto.openssl_privatekey:
-    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     passphrase:               "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer2.type }}"
-    cipher:                   "{{ ssl_certificate_authority.ca_definition.layer2.encryption }}"
+    cipher:                   "auto"
+    # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer2.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer2.bitlength }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
@@ -17,10 +19,11 @@
 
 - name: Generate CSR for intermediate-certificate
   community.crypto.openssl_csr:
-    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/csr/{{ item }}.csr"
-    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/csr/{{ item.name }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
-    common_name:              "{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    common_name:              "{{ item.common_name }}"
+    # common_name:              "{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     # authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
@@ -31,16 +34,18 @@
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
+  register:     gen_intermediate_certificate
 
 - name: Sign private Key with root-key for intermediate-certificate
   community.crypto.x509_certificate:
-    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ item }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/csr/{{ item }}.csr"
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/csr/{{ item.name }}.csr"
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
     provider:                 "selfsigned"
@@ -49,10 +54,11 @@
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "444"
+    select_crypto_backend:    "cryptography"
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
-  register:     gen_intermediate_certificate
+  when:         gen_intermediate_certificate.changed
  

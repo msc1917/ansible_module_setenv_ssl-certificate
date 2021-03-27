@@ -1,1 +1,6 @@
 ---
+- name: refresh certificates
+  command: "update-ca-certificates --fresh"
+#   command: "update-ca-certificates extract"
+  become: yes
+  ignore_errors: yes

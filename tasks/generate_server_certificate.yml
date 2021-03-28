@@ -26,9 +26,9 @@
 - name: Generate private key for server-certificates
   community.crypto.openssl_privatekey:
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    # passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer3.type }}"
-    cipher:                   "auto"
+    # cipher:                   "auto"
     # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer3.bitlength }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
@@ -42,7 +42,7 @@
   community.crypto.openssl_csr:
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     common_name:              "{{ inventory_hostname }}"
     # authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
@@ -76,7 +76,7 @@
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
     csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     provider:                 "ownca"
     ownca_not_after:          "+{{ ssl_certificate_authority.ca_definition.layer3.keeptime }}d"
     ownca_not_before:         "+0d"
@@ -104,7 +104,8 @@
     other_certificates: 
       - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
       - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "444"
@@ -139,17 +140,16 @@
 - name: Copy certificates to smb-space
   ansible.builtin.copy:
     src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ item.source }}"
-    dest:  "/srv/ssl-ca/{{ item.target }}"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ item.target }}"
     owner: "root"
     group: "root"
     mode:  "0644"
     remote_src: yes
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
-  run_once:     yes
   become:       yes
   with_items:
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.crt" }
-    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem" }
+    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.crt" }
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12" }
   when:         gen_intermediate_certificate.changed
 

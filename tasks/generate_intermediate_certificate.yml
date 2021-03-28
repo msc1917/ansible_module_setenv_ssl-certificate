@@ -40,11 +40,6 @@
       - cRLSign
       - digitalSignature
       - keyCertSign
-    basic_constraints:
-      - CA:TRUE
-    key_usage:
-      - keyCertSign
-      - digitalSignature
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
@@ -83,7 +78,7 @@
 - name: Copy certificates to smb-space
   ansible.builtin.copy:
     src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:  "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ item.name }}.crt"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ item.name }}.crt"
     owner: "root"
     group: "root"
     mode:  "0644"

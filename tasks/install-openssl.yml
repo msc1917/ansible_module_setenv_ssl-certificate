@@ -54,8 +54,9 @@
   run_once: yes
   become: yes
   with_items:
-    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/index", "mode": "0600" }
-    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/index", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/index.db", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/index.db", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/index.db", "mode": "0600" }
 
 - name: Generate Random-Files
   shell: 
@@ -68,6 +69,7 @@
   with_items:
     - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/serial", "mode": "0600" }
     - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/serial", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/serial", "mode": "0600" }
 
 - name: "Set permissions to index-files"
   file:
@@ -81,6 +83,7 @@
   with_items:
     - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/serial", "mode": "0600" }
     - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/serial", "mode": "0600" }
+    - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/serial", "mode": "0600" }
 
 
 
@@ -95,12 +98,13 @@
   run_once: yes
   become: yes
   with_items:
-    - "/srv/ssl-ca"
-    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
-    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/public"
-    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/csr"
-    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/crl"
-    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate"
+    - "{{ ssl_certificate_authority.sambadir }}"
+    - "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    - "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate"
+    - "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate"
+    - "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/private"
+    - "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/csr"
+    - "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/crl"
 
 # - name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"
 #   ini_file:

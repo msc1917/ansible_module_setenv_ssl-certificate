@@ -52,6 +52,12 @@
     state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
     locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
     subject_alt_name:         "{{ ( act_dommain_list | map('regex_replace', '^', 'DNS:') | list ) + ( act_ip_address | map('regex_replace', '^', 'IP:') | list ) }}"
+    basic_constraints:
+      - CA:FALSE
+      # - pathlen:3
+    key_usage:
+      - keyCertSign
+      - digitalSignature
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
@@ -74,6 +80,7 @@
     provider:                 "ownca"
     ownca_not_after:          "+{{ ssl_certificate_authority.ca_definition.layer3.keeptime }}d"
     ownca_not_before:         "+0d"
+    ownca_create_subject_key_identifier: "always_create"
     ownca_path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     ownca_privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     ownca_privatekey_passphrase: "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
@@ -94,7 +101,9 @@
     friendly_name:      "{{ inventory_hostname }}"
     privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
     certificate_path:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    other_certificates: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    other_certificates: 
+      - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+      - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
@@ -104,121 +113,46 @@
   become:       yes
   when:        gen_server_certificate.changed
 
+# - name: Generate chain-file
+#   command: "cat {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem > {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem"
+#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   become: yes
+#   ignore_errors: yes
 
-# If there are Problems with the local certificate files
-
-# - name: Remove root key file from host
-#   ansible.builtin.file:
-#     path:      "/etc/ssl/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-#     state:     absent
-#   become:      yes
-#   when:        gen_server_certificate.changed
-
-# - name: Remove private key file from host
-#   ansible.builtin.file:
-#     path:      "/etc/ssl/private/{{ ssl_certificate_authority.ca_definition.layer3.local_filename }}.pem"
-#     state:     absent
-#   become:      yes
-#   when:        gen_server_certificate.changed
-
-# - name: Remove certificate key file from host
-#   ansible.builtin.file:
-#     path:      "/etc/ssl/crt/{{ ssl_certificate_authority.ca_definition.layer3.local_filename }}.pem"
-#     state:     absent
-#   become:      yes
-#   when:        gen_server_certificate.changed
-
-
-# Distribute Keys to servers
-
-- name: Fetch private key file from ca-server
-  fetch: 
-    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    flat:      yes
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
+- name: Read certificates for chain-file
+  command: "cat {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+  register: chained_file_content
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become: yes
+  ignore_errors: yes
   when:        gen_server_certificate.changed
 
-- name: Copy private key file to target-host
-  copy: 
-    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    dest:      "/etc/ssl/private/{{ ssl_certificate_authority.ca_definition.layer3.local_filename }}.pem"
-    owner:     "root"
-    group:     "root"
-    mode:      "444"
-  become:      yes
+- name: Write chain-file
+  copy:
+    dest: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem"
+    content: "{{ chained_file_content.stdout_lines | unique |join('\n') }}"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become: yes
+  ignore_errors: yes
   when:        gen_server_certificate.changed
 
-- name: Remove private file from temp-directory
-  ansible.builtin.file:
-    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    state:     absent
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  when:        gen_server_certificate.changed
+- name: Copy certificates to smb-space
+  ansible.builtin.copy:
+    src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ item.source }}"
+    dest:  "/srv/ssl-ca/{{ item.target }}"
+    owner: "root"
+    group: "root"
+    mode:  "0644"
+    remote_src: yes
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  with_items:
+    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.crt" }
+    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem" }
+    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12" }
+  when:         gen_intermediate_certificate.changed
 
-- name: Fetch certificate file from ca-server
-  fetch: 
-    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    flat:      yes
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-- name: Copy certificate file to target-host
-  copy: 
-    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    dest:      "/etc/ssl/crt/{{ ssl_certificate_authority.ca_definition.layer3.local_filename }}.pem"
-    owner:     "root"
-    group:     "root"
-    mode:      "444"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-- name: Remove certificate key file from temp-directory
-  ansible.builtin.file:
-    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    state:     absent
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-- name: Fetch certificate file from ca-server
-  fetch: 
-    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    flat:      yes
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  run_once:    yes
-  when:        gen_server_certificate.changed
-
-- name: Copy certificate file to target-host
-  copy: 
-    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:      "/etc/ssl/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    owner:     "root"
-    group:     "root"
-    mode:      "777"
-  become:      yes
-  notify:      refresh certificates
-  when:        gen_server_certificate.changed
-
-- name: Remove certificate key file from temp-directory
-  ansible.builtin.file:
-    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    state:     absent
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  run_once:    yes
-  when:        gen_server_certificate.changed
-
-# - name: Update CA Trust
-#   command: "update-ca-certificates extract"
-#   become:  true
-#   when:    gen_server_certificate.changed
 
 # Debug-Output für die Wertzuweisung
 # - name: Show actual device-name
@@ -231,12 +165,11 @@
 #   ansible.builtin.debug: 
 #     var: act_dommain_list
 
-
-- name: Show CSR content
-  ansible.builtin.debug: 
-    var: gen_server_certificate
-
-- name: Show Certificate content
-  ansible.builtin.debug: 
-    var: server_certificate
-  when:        gen_server_certificate.changed
+# Debug-Output für die Zertifikate und CSRs
+# - name: Show CSR content
+#   ansible.builtin.debug: 
+#     var: gen_server_certificate
+# - name: Show Certificate content
+#   ansible.builtin.debug: 
+#     var: server_certificate
+#   when:        gen_server_certificate.changed

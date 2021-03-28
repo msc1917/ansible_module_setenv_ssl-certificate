@@ -31,6 +31,20 @@
     country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
     state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
     locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    basic_constraints_critical: "yes"
+    basic_constraints:
+      - CA:TRUE
+      - pathlen:1
+    key_usage_critical: "yes"
+    key_usage:
+      - cRLSign
+      - digitalSignature
+      - keyCertSign
+    basic_constraints:
+      - CA:TRUE
+    key_usage:
+      - keyCertSign
+      - digitalSignature
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
@@ -65,4 +79,18 @@
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
   when:         gen_intermediate_certificate.changed
- 
+
+- name: Copy certificates to smb-space
+  ansible.builtin.copy:
+    src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:  "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ item.name }}.crt"
+    owner: "root"
+    group: "root"
+    mode:  "0644"
+    remote_src: yes
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  run_once:     yes
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
+  when:         gen_intermediate_certificate.changed

@@ -15,10 +15,6 @@
     - ssl_certificate_authority.type == "letsencrypt"
     - (services is defined) and ('ssl_certificate_authority' in services)
 
-- name: Generate global mapping
-  include_tasks: generate_mapping_tables.yml
-  # no_log: true
-
 - name: Generate root-certificate with openssl
   include_tasks: generate_master_certificate.yml
   when:
@@ -35,8 +31,18 @@
     - (services is defined) and ('ssl_certificate_authority' in services)
     - ssl_certificate_authority.create_master_certificate is true
 
+- name: Generate global mapping
+  include_tasks: generate_mapping_tables.yml
+  # no_log: true
+
 - name: Generate server-certificates with openssl
   include_tasks: generate_server_certificate.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
+
+- name: Distributes server-certificates and install rootCA
+  include_tasks: distribute_keys.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"

@@ -32,6 +32,15 @@
     country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
     state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
     locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    # basicConstraints:         "[ 'CA:TRUE', 'pathlen:2' ]"
+    basic_constraints_critical: "yes"
+    basic_constraints:
+      - CA:TRUE
+    key_usage_critical: "yes"
+    key_usage:
+      - cRLSign
+      - digitalSignature
+      - keyCertSign
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
     mode:                     "400"
@@ -65,7 +74,7 @@
 - name: Copy certificate to smb-space
   ansible.builtin.copy:
     src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:  "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:  "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.crt"
     owner: "root"
     group: "root"
     mode:  "0644"

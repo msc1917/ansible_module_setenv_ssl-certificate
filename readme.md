@@ -20,5 +20,5 @@ Richtet die Software für folgende Services ein:
 * Samba integrieren
 
 ## Checks:
- openssl verify /home/schama/data/ssl-ca/baikonur.at/intermediate-ca/certs/intermediateCA.m19.baikonur.at.pem /etc/ssl/certs/rootCA.baikonur.at.pem /etc/ssl/crt/server-cert.pem
+ openssl verify /etc/ssl/certs/rootCA.baikonur.at.pem /home/schama/data/ssl-ca/baikonur.at/intermediate-ca/certs/intermediateCA.m19.baikonur.at.pem /etc/ssl/crt/server-cert.pem
  openssl x509 -in /etc/ssl/crt/server-cert.pem -text -noout

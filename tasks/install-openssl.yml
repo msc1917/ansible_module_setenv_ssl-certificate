@@ -95,12 +95,12 @@
   run_once: yes
   become: yes
   with_items:
-    - "srv/ssl-ca"
-    - "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
-    - "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/public"
-    - "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/csr"
-    - "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/crl"
-    - "srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate"
+    - "/srv/ssl-ca"
+    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/public"
+    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/csr"
+    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/crl"
+    - "/srv/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate"
 
 # - name: Update Config-File /etc/ssl/openssl.cnf in Section "[drinks]"
 #   ini_file:

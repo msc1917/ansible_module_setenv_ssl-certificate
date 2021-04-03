@@ -85,12 +85,14 @@
 
 - name: Fetch root-certificate file from ca-server
   fetch: 
-    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/tmp/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     flat:      yes
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:      yes
   run_once:    yes
+  with_items: 
+  - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
   when:        gen_server_certificate.changed
 
 # - name: "Generate CA-Directories"
@@ -104,22 +106,29 @@
 
 - name: Copy root-certificate file to target-host
   copy: 
-    src:       "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:      "/usr/local/share/ca-certificates/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.crt"
+    src:       "/tmp/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    dest:      "/usr/local/share/ca-certificates/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.crt"
     owner:     "root"
     group:     "root"
     mode:      "777"
   become:      yes
   notify:      refresh certificates
-  when:        gen_server_certificate.changed
+  with_items: 
+  - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
+  when:        
+    - gen_server_certificate.changed
+    - ssl_certificates is defined
+    - item.name in ssl_certificates
 
 - name: Remove root-certificate key file from temp-directory
   ansible.builtin.file:
-    path:      "/tmp/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    path:      "/tmp/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     state:     absent
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:      yes
   run_once:    yes
+  with_items: 
+  - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
   when:        gen_server_certificate.changed
 
 - name: Fetch intermediate-certificates file from ca-server

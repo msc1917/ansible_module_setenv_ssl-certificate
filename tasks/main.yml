@@ -1,6 +1,6 @@
 ---
 - name: Install openssl
-  include_tasks: install-openssl.yml
+  include_tasks: install/install-openssl.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
@@ -9,21 +9,21 @@
     # - 'ssl_certificate_authority' in services
 
 - name: Configure openssl
-  include_tasks: configure-openssl.yml
+  include_tasks: install/configure-openssl.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
     - (services is defined) and ('ssl_certificate_authority' in services)
 
 - name: Install letsencrypt
-  include_tasks: install-letsencrypt.yml
+  include_tasks: install/install-letsencrypt.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "letsencrypt"
     - (services is defined) and ('ssl_certificate_authority' in services)
 
 - name: Generate root-certificate with openssl
-  include_tasks: generate_master_certificate.yml
+  include_tasks: common-ca/generate_master_certificate.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
@@ -31,7 +31,7 @@
     - ssl_certificate_authority.create_master_certificate is true
 
 - name: Generate intermediate-certificates with openssl
-  include_tasks: generate_intermediate_certificate.yml
+  include_tasks: common-ca/generate_intermediate_certificate.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
@@ -43,13 +43,13 @@
   # no_log: true
 
 - name: Generate server-certificates with openssl
-  include_tasks: generate_server_certificate.yml
+  include_tasks: common-ca/generate_server_certificate.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
 
 - name: Distributes server-certificates and install rootCA
-  include_tasks: distribute_keys.yml
+  include_tasks: common-ca/distribute_keys.yml
   when:
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"

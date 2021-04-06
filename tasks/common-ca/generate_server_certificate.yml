@@ -65,7 +65,6 @@
     dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
     flat:      yes
   become:      yes
-  register:     gen_server_certificate
 
 - name: Copy csr file to ca-host
   copy: 
@@ -76,7 +75,6 @@
     mode:      "644"
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:      yes
-  register:     gen_server_certificate
 
 - name: Sign private Key with intermediate-key for server-certificates
   community.crypto.x509_certificate:
@@ -127,7 +125,6 @@
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}"
     - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained"
-  when:        gen_server_certificate.changed
 
 - name: Copy certificate file to target-host
   copy: 
@@ -140,31 +137,11 @@
   with_items: 
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem",         target: "server.crt" }
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "server.chained.crt" }
-  when:        gen_server_certificate.changed
-
-# - name: Generate PKCS12 file from server certificate
-#   openssl_pkcs12:
-#     action:             export
-#     path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
-#     friendly_name:      "{{ inventory_hostname }}"
-#     privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-#     certificate_path:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-#     other_certificates: 
-#       - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-#       - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-#     passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
-#     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
-#     group:                    "{{ ssl_certificate_authority.ssl_group }}"
-#     mode:                     "444"
-#     state: present
-#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
-#   become:       yes
-#   when:        gen_server_certificate.changed
 
 - name: Generate PKCS12 file from server certificate
   openssl_pkcs12:
     action:             export
-    path:               "/etc/ssl/private/server-cert.p12"
+    path:               "/etc/ssl/crt/server-cert.p12"
     friendly_name:      "{{ inventory_hostname }}"
     privatekey_path:    "/etc/ssl/private/server-cert.pem"
     certificate_path:   "/etc/ssl/crt/server.crt"
@@ -177,15 +154,14 @@
     mode:                     "644"
     state: present
   become:       yes
-  when:        gen_server_certificate.changed
+  # when:        gen_server_certificate.changed
 
 - name: Fetch p12-file from server
   fetch: 
-    src:       "/etc/ssl/private/server-cert.p12"
+    src:       "/etc/ssl/crt/server-cert.p12"
     dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/p12/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
     flat:      yes
   become:      yes
-  register:     gen_server_certificate
 
 - name: Copy p12-file to ca-host
   copy: 
@@ -196,12 +172,21 @@
     mode:      "644"
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:      yes
-  register:     gen_server_certificate
+
+- name: "Generate server-directory on smb-space"
+  file:
+    path: "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ inventory_hostname }}"
+    owner: "root"
+    group: "root"
+    mode:  "755"
+    state: directory
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become: yes
 
 - name: Copy certificates to smb-space
   ansible.builtin.copy:
     src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ item.source }}"
-    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ item.target }}"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ inventory_hostname }}/{{ item.target }}"
     owner: "root"
     group: "root"
     mode:  "0644"
@@ -212,8 +197,6 @@
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.crt" }
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.crt" }
     - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12" }
-  when:         gen_intermediate_certificate.changed
-
 
 # Debug-Output für die Wertzuweisung
 # - name: Show actual device-name

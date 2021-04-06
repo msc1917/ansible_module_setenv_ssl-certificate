@@ -1,0 +1,181 @@
+---
+- name: Generate private key for device-certificates
+  community.crypto.openssl_privatekey:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    # passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    type:                     "{{ ssl_certificate_authority.ca_definition.layer3.type }}"
+    # cipher:                   "auto"
+    # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
+    size:                     "{{ ssl_certificate_authority.ca_definition.layer3.bitlength }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
+    select_crypto_backend:    "cryptography"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+
+- name: Generate CSR for device-certificates
+  community.crypto.openssl_csr:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    common_name:              "{{ item.fqhn_domain }}"
+    # authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
+    organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
+    email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
+    country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
+    state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
+    locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    subject_alt_name:         "{{ ( hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_domainname_list'][item.dev_name] | unique | sort | map('regex_replace', '^', 'DNS:') | list ) + ( hostvars[ssl_certificate_authority.ssl_ca_host]['ssl_dev_name_to_ip_address_list'][item.dev_name] | unique | sort | map('regex_replace', '^', 'IP:') | list ) }}"
+    basic_constraints:
+      - CA:FALSE
+      # - pathlen:3
+    key_usage:
+      - keyCertSign
+      - digitalSignature
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "400"
+    select_crypto_backend:    "cryptography"
+    ocsp_must_staple:         "true"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  register:     gen_server_certificate
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+ 
+- name: Sign private Key with intermediate-key for device-certificates
+  community.crypto.x509_certificate:
+    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.csr"
+    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    provider:                 "ownca"
+    ownca_not_after:          "+{{ ssl_certificate_authority.ca_definition.layer3.keeptime }}d"
+    ownca_not_before:         "+0d"
+    ownca_create_subject_key_identifier: "always_create"
+    ownca_path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    ownca_privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    ownca_privatekey_passphrase: "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "444"
+    select_crypto_backend:    "cryptography"
+    return_content:           "yes"
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  register:    server_certificate
+  when:        gen_server_certificate.changed
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+
+
+- name: Generate PKCS12 file from device-certificate
+  openssl_pkcs12:
+    action:             export
+    path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.p12"
+    friendly_name:      "{{ item.fqhn_domain }}"
+    privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    certificate_path:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    other_certificates: 
+      - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.master_root_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+      - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    mode:                     "444"
+    state: present
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+  # when:        gen_server_certificate.changed
+
+# - name: Read certificates for chain-file
+#   command: "cat {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+#   register: chained_file_content
+#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   become: yes
+#   ignore_errors: yes
+#   with_items: 
+#     - "{{ ssl_certificate_authority.additional_certificates }}"
+#   # when:        gen_server_certificate.changed
+
+# - name: Write chain-file
+#   copy:
+#     dest: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item[0].fqhn_domain }}.chained.pem"
+#     content: "{{ item[1].stdout_lines | unique |join('\n') }}"
+#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   become: yes
+#   ignore_errors: yes
+#   with_nested: 
+#     - "{{ ssl_certificate_authority.additional_certificates }}"
+#     - "{{ chained_file_content }}"
+#   # when:        gen_server_certificate.changed
+
+- name: Copy private keys to smb-space
+  ansible.builtin.copy:
+    src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    owner: "root"
+    group: "root"
+    mode:  "0644"
+    remote_src: yes
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+
+- name: "Generate server-directory on smb-space"
+  file:
+    path: "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ item.fqhn_domain }}"
+    owner: "root"
+    group: "root"
+    mode:  "755"
+    state: directory
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become: yes
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+
+- name: Copy certificate to smb-space
+  ansible.builtin.copy:
+    src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.pem"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ item.fqhn_domain }}/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.crt"
+    owner: "root"
+    group: "root"
+    mode:  "0644"
+    remote_src: yes
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"
+
+# - name: Copy chained certificate to smb-space
+#   ansible.builtin.copy:
+#     src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.chained.pem"
+#     dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ item.fqhn_domain }}/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.chained.crt"
+#     owner: "root"
+#     group: "root"
+#     mode:  "0644"
+#     remote_src: yes
+#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   become:       yes
+#   with_items: 
+#     - "{{ ssl_certificate_authority.additional_certificates }}"
+
+- name: Copy p12-file to smb-space
+  ansible.builtin.copy:
+    src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.p12"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server-certificate/{{ item.fqhn_domain }}/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ item.fqhn_domain }}.p12"
+    owner: "root"
+    group: "root"
+    mode:  "0644"
+    remote_src: yes
+  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:       yes
+  with_items: 
+    - "{{ ssl_certificate_authority.additional_certificates }}"

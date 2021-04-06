@@ -8,7 +8,6 @@
     passphrase:               "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer1.type }}"
     cipher:                   "auto"
-    # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer1.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer1.bitlength }}"
     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     group:                    "{{ ssl_certificate_authority.ssl_group }}"
@@ -17,7 +16,6 @@
   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once:     yes
   become:       yes
-  # become-user: "{{ ssl_certificate_authority.ssl_user }}"
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
 
@@ -27,14 +25,12 @@
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/private/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
     privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer1.passphrase }}"
     common_name:              "{{ item.common_name }}"
-    # common_name:              "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
     email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
     country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
     state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
     locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
-    # basicConstraints:         "[ 'CA:TRUE', 'pathlen:2' ]"
     basic_constraints_critical: "yes"
     basic_constraints:
       - CA:TRUE
@@ -51,7 +47,6 @@
   run_once:     yes
   become:       yes
   register:     gen_root_certificate
-  # become-user: "{{ ssl_certificate_authority.ssl_user }}"
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
 
@@ -73,14 +68,13 @@
   run_once:     yes
   become:       yes
   when:         gen_root_certificate.changed
-  # become-user: "{{ ssl_certificate_authority.ssl_user }}"
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
 
 - name: Copy certificate to smb-space
   ansible.builtin.copy:
     src:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/ca-certificate/{{ item.name }}.crt"
+    dest:  "{{ ssl_certificate_authority.sambadir }}/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-certificate/{{ item.name }}.crt"
     owner: "root"
     group: "root"
     mode:  "0644"
@@ -91,9 +85,3 @@
   when:         gen_root_certificate.changed
   with_items: 
     - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
-
-
-# - name: Generate public key from root-certificate
-#   community.crypto.openssl_publickey:
-#     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-#     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"

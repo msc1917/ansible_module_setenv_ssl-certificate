@@ -60,7 +60,13 @@
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
 
-
+- name: Generate device-certificates with openssl
+  include_tasks: common-ca/generate_device_certificates.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
+    - (services is defined) and ('ssl_certificate_authority' in services)
+    - ssl_certificate_authority.create_master_certificate is true
 
 # - name: Generate CSR for Certificate Authority
 #   include_tasks: generate_csr.yml

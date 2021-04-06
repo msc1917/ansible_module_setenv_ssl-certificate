@@ -27,16 +27,7 @@
   run_once:    yes
   with_items: 
   - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
-  when:        gen_server_certificate.changed
-
-# - name: "Generate CA-Directories"
-#   file:
-#     path: "/usr/share/ca-certificates/extra"
-#     owner: "root"
-#     group: "root"
-#     state: directory
-#     mode: "755"
-#   become: yes
+  # when:        gen_server_certificate.changed
 
 - name: Copy root-certificate file to target-host
   copy: 
@@ -50,20 +41,9 @@
   with_items: 
   - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
   when:        
-    - gen_server_certificate.changed
+    # - gen_server_certificate.changed
     - ssl_certificates is defined
     - item.name in ssl_certificates
-
-# - name: Remove root-certificate key file from temp-directory
-#   ansible.builtin.file:
-#     path:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/root-cert/public/{{ item.name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-#     state:     absent
-#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-#   become:      yes
-#   run_once:    yes
-#   with_items: 
-#   - "{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}"
-#   when:        gen_server_certificate.changed
 
 # Distribute intermediate-CA-Key
 
@@ -77,7 +57,7 @@
   run_once:    yes
   with_items:
     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
-  when:        gen_server_certificate.changed
+  # when:        gen_server_certificate.changed
 
 - name: Copy intermediate-certificates file to target-host
   copy: 
@@ -89,98 +69,4 @@
   become:      yes
   with_items:
     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
-  when:        gen_server_certificate.changed
-
-- name: Copy intermediate-certificates file to target-host
-  copy: 
-    src:       "{{ inventory_dir }}/dynamic_vars/files/config/ssl/intermediate-cert/public/{{ ssl_certificate_authority.master_intermediate_cert }}.pem"
-    dest:      "/etc/ssl/crt/server-ca.crt"
-    owner:     "root"
-    group:     "root"
-    mode:      "444"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-# - name: Remove intermediate-certificates key file from temp-directory
-#   ansible.builtin.file:
-#     path:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/intermediate-cert/public/{{ item.name }}.pem"
-#     state:     absent
-#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-#   become:      yes
-#   run_once:    yes
-#   with_items:
-#     - "{{ ssl_certificate_authority.ca_definition.layer2.certificate_name }}"
-#   when:        gen_server_certificate.changed
-
-# Distribute Keys to servers
-
-- name: Fetch private key file from ca-server
-  fetch: 
-    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    flat:      yes
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-- name: Copy private key file to target-host
-  copy: 
-    src:       "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    dest:      "/etc/ssl/private/{{ ssl_certificate_authority.ca_definition.layer3.local_filename }}.pem"
-    owner:     "root"
-    group:     "root"
-    mode:      "444"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-- name: Remove private file from temp-directory
-  ansible.builtin.file:
-    path:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    state:     absent
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  when:        gen_server_certificate.changed
-
-- name: Fetch certificate file from ca-server
-  fetch: 
-    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ item }}.pem"
-    dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/public/{{ item }}.pem"
-    flat:      yes
-  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:      yes
-  with_items: 
-    - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}"
-    - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained"
-  when:        gen_server_certificate.changed
-
-- name: Copy certificate file to target-host
-  copy: 
-    src:       "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/public/{{ item.source }}"
-    dest:      "/etc/ssl/crt/{{ item.target }}"
-    owner:     "root"
-    group:     "root"
-    mode:      "444"
-  become:      yes
-  with_items: 
-    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem",         target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.crt" }
-    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem",         target: "server.crt" }
-    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.crt" }
-    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "server.chained.crt" }
-  when:        gen_server_certificate.changed
-
-# - name: Remove certificate key file from temp-directory
-#   ansible.builtin.file:
-#     path:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/public/{{ item }}.pem"
-#     state:     absent
-#   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
-#   become:      yes
-#   with_items: 
-#     - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}"
-#     - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained"
-#   when:        gen_server_certificate.changed
-
-
-# - name: Update CA Trust
-#   command: "update-ca-certificates extract"
-#   become:  true
-#   when:    gen_server_certificate.changed
+  # when:        gen_server_certificate.changed

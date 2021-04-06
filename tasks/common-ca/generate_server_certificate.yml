@@ -25,30 +25,20 @@
 
 - name: Generate private key for server-certificates
   community.crypto.openssl_privatekey:
-    # path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    path:                     "/etc/ssl/private/server-cert.pem.pem"
-    # passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    path:                     "/etc/ssl/private/server-cert.pem"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer3.type }}"
-    # cipher:                   "auto"
-    # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer3.bitlength }}"
-    # owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     owner:                    "root"
-    # group:                    "{{ ssl_certificate_authority.ssl_group }}"
     group:                    "root"
     mode:                     "400"
     select_crypto_backend:    "cryptography"
-  # delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
 
 - name: Generate CSR for server-certificates
   community.crypto.openssl_csr:
     path:                     "/etc/ssl/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
-    # privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    privatekey_path:          "/etc/ssl/private/server-cert.pem.pem"
-    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    privatekey_path:          "/etc/ssl/private/server-cert.pem"
     common_name:              "{{ inventory_hostname }}"
-    # authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
     organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
     organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
     email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
@@ -58,18 +48,14 @@
     subject_alt_name:         "{{ ( act_dommain_list | map('regex_replace', '^', 'DNS:') | list ) + ( act_ip_address | map('regex_replace', '^', 'IP:') | list ) }}"
     basic_constraints:
       - CA:FALSE
-      # - pathlen:3
     key_usage:
       - keyCertSign
       - digitalSignature
-    # owner:                    "{{ ssl_certificate_authority.ssl_user }}"
     owner:                    "root"
-    # group:                    "{{ ssl_certificate_authority.ssl_group }}"
     group:                    "root"
     mode:                     "400"
     select_crypto_backend:    "cryptography"
     ocsp_must_staple:         "true"
-  # delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
   register:     gen_server_certificate
 
@@ -97,7 +83,6 @@
     path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
     csr_path:                 "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
     privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     provider:                 "ownca"
     ownca_not_after:          "+{{ ssl_certificate_authority.ca_definition.layer3.keeptime }}d"
     ownca_not_before:         "+0d"
@@ -115,32 +100,6 @@
   register:    server_certificate
   when:        gen_server_certificate.changed
 
-- name: Generate PKCS12 file from server certificate
-  openssl_pkcs12:
-    action:             export
-    path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
-    friendly_name:      "{{ inventory_hostname }}"
-    privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    certificate_path:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
-    other_certificates: 
-      - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-      - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
-    # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
-    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
-    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
-    group:                    "{{ ssl_certificate_authority.ssl_group }}"
-    mode:                     "444"
-    state: present
-  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
-  become:       yes
-  when:        gen_server_certificate.changed
-
-# - name: Generate chain-file
-#   command: "cat {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem > {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem"
-#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
-#   become: yes
-#   ignore_errors: yes
-
 - name: Read certificates for chain-file
   command: "cat {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem {{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
   register: chained_file_content
@@ -157,6 +116,87 @@
   become: yes
   ignore_errors: yes
   when:        gen_server_certificate.changed
+
+- name: Fetch certificate file from ca-server
+  fetch: 
+    src:       "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ item }}.pem"
+    dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/public/{{ item }}.pem"
+    flat:      yes
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  with_items: 
+    - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}"
+    - "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained"
+  when:        gen_server_certificate.changed
+
+- name: Copy certificate file to target-host
+  copy: 
+    src:       "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/public/{{ item.source }}"
+    dest:      "/etc/ssl/crt/{{ item.target }}"
+    owner:     "root"
+    group:     "root"
+    mode:      "444"
+  become:      yes
+  with_items: 
+    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem",         target: "server.crt" }
+    - { source: "{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.chained.pem", target: "server.chained.crt" }
+  when:        gen_server_certificate.changed
+
+# - name: Generate PKCS12 file from server certificate
+#   openssl_pkcs12:
+#     action:             export
+#     path:               "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
+#     friendly_name:      "{{ inventory_hostname }}"
+#     privatekey_path:    "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+#     certificate_path:   "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+#     other_certificates: 
+#       - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs/{{ ssl_certificate_authority.ca_definition.layer1.certificate_name }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+#       - "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+#     passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+#     owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+#     group:                    "{{ ssl_certificate_authority.ssl_group }}"
+#     mode:                     "444"
+#     state: present
+#   delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+#   become:       yes
+#   when:        gen_server_certificate.changed
+
+- name: Generate PKCS12 file from server certificate
+  openssl_pkcs12:
+    action:             export
+    path:               "/etc/ssl/private/server-cert.p12"
+    friendly_name:      "{{ inventory_hostname }}"
+    privatekey_path:    "/etc/ssl/private/server-cert.pem"
+    certificate_path:   "/etc/ssl/crt/server.crt"
+    other_certificates: 
+      - "/usr/local/share/ca-certificates/{{ ssl_certificate_authority.master_root_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.crt"
+      - "/etc/ssl/crt/{{ ssl_certificate_authority.master_intermediate_cert }}.crt"
+    passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
+    owner:                    "root"
+    group:                    "root"
+    mode:                     "644"
+    state: present
+  become:       yes
+  when:        gen_server_certificate.changed
+
+- name: Fetch p12-file from server
+  fetch: 
+    src:       "/etc/ssl/private/server-cert.p12"
+    dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/p12/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
+    flat:      yes
+  become:      yes
+  register:     gen_server_certificate
+
+- name: Copy p12-file to ca-host
+  copy: 
+    src:       "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/p12/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
+    dest:      "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.p12"
+    owner:     "{{ ssl_certificate_authority.ssl_user }}"
+    group:     "{{ ssl_certificate_authority.ssl_group }}"
+    mode:      "644"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  register:     gen_server_certificate
 
 - name: Copy certificates to smb-space
   ansible.builtin.copy:

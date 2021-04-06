@@ -1,7 +1,7 @@
 ---
 - name: Install openssl-Package
   apt:
-    name: [ "openssl", "python3-cryptography" ]
+    name: [ "openssl", "python3-openssl", "python3-cryptography" ]
     state: present
     update_cache: no
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
@@ -21,6 +21,7 @@
   with_items:
     - { "directory": "{{ default_path.data_path }}", "mode": "0755" }
     - { "directory": "{{ default_path.data_path }}/ssl-ca", "mode": "0755" }
+    - { "directory": "{{ default_path.data_path }}/ssl-ca/helper-scripts", "mode": "0755" }
     - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}", "mode": "0755" }
     - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca", "mode": "0755" }
     - { "directory": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/root-ca/certs", "mode": "0755" }
@@ -85,7 +86,18 @@
     - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/serial", "mode": "0600" }
     - { "file": "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/serial", "mode": "0600" }
 
-
+- name: Create local files
+  copy:
+    src:   "{{ item }}"
+    dest:  "{{ default_path.data_path }}/ssl-ca/helper-scripts/{{ item }}"
+    owner: "{{ ssl_certificate_authority.ssl_user }}"
+    group: "{{ ssl_certificate_authority.ssl_group }}"
+    mode:  '744'
+  become: yes
+  run_once: yes
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  with_items:
+   - 'cleanup_ssl.sh'
 
 - name: "Generate Export-Directories"
   file:

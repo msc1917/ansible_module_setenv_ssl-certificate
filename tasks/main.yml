@@ -44,6 +44,12 @@
     - (services is defined) and ('ssl_certificate_authority' in services)
     - ssl_certificate_authority.create_master_certificate is true
 
+- name: Distributes root- and intermediate-certificates and install rootCA
+  include_tasks: common-ca/distribute_keys.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
+
 - name: Generate global mapping
   include_tasks: generate_mapping_tables.yml
   # no_log: true
@@ -54,11 +60,6 @@
     - ssl_certificate_authority is defined
     - ssl_certificate_authority.type == "openssl"
 
-- name: Distributes server-certificates and install rootCA
-  include_tasks: common-ca/distribute_keys.yml
-  when:
-    - ssl_certificate_authority is defined
-    - ssl_certificate_authority.type == "openssl"
 
 
 # - name: Generate CSR for Certificate Authority

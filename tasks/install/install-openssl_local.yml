@@ -1,7 +1,7 @@
 ---
 - name: Install openssl-Package
   apt:
-    name: [ "openssl", "python3-cryptography" ]
+    name: [ "openssl", "python3-openssl", "python3-cryptography" ]
     state: present
     update_cache: no
   become: yes

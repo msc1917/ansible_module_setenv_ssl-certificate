@@ -8,6 +8,12 @@
     # - services is defined
     # - 'ssl_certificate_authority' in services
 
+- name: Install openssl on local hosts
+  include_tasks: install/install-openssl_local.yml
+  when:
+    - ssl_certificate_authority is defined
+    - ssl_certificate_authority.type == "openssl"
+
 - name: Configure openssl
   include_tasks: install/configure-openssl.yml
   when:

@@ -25,23 +25,27 @@
 
 - name: Generate private key for server-certificates
   community.crypto.openssl_privatekey:
-    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+    # path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+    path:                     "/etc/ssl/private/server-cert.pem.pem"
     # passphrase:               "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     type:                     "{{ ssl_certificate_authority.ca_definition.layer3.type }}"
     # cipher:                   "auto"
     # cipher:                   "{{ ssl_certificate_authority.ca_definition.layer3.encryption }}"
     size:                     "{{ ssl_certificate_authority.ca_definition.layer3.bitlength }}"
-    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
-    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    # owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    owner:                    "root"
+    # group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    group:                    "root"
     mode:                     "400"
     select_crypto_backend:    "cryptography"
-  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  # delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
 
 - name: Generate CSR for server-certificates
   community.crypto.openssl_csr:
-    path:                     "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
-    privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+    path:                     "/etc/ssl/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+    # privatekey_path:          "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+    privatekey_path:          "/etc/ssl/private/server-cert.pem.pem"
     # privatekey_passphrase:    "{{ ssl_certificate_authority.ca_definition.layer3.passphrase }}"
     common_name:              "{{ inventory_hostname }}"
     # authority_cert_issuer:    "DNS:{{ ssl_certificate_authority.cert_issuer }}"
@@ -58,18 +62,35 @@
     key_usage:
       - keyCertSign
       - digitalSignature
-    owner:                    "{{ ssl_certificate_authority.ssl_user }}"
-    group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    # owner:                    "{{ ssl_certificate_authority.ssl_user }}"
+    owner:                    "root"
+    # group:                    "{{ ssl_certificate_authority.ssl_group }}"
+    group:                    "root"
     mode:                     "400"
     select_crypto_backend:    "cryptography"
     ocsp_must_staple:         "true"
-  delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
+  # delegate_to:  "{{ ssl_certificate_authority.ssl_ca_host }}"
   become:       yes
   register:     gen_server_certificate
-  # with_dict:
-  #   dns_server:
-  #   - "{{ act_dommain_list }}"
-  #   - "{{ act_ip_address }}"
+
+- name: Fetch csr file from server
+  fetch: 
+    src:       "/etc/ssl/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+    dest:      "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+    flat:      yes
+  become:      yes
+  register:     gen_server_certificate
+
+- name: Copy csr file to ca-host
+  copy: 
+    src:       "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+    dest:      "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+    owner:     "{{ ssl_certificate_authority.ssl_user }}"
+    group:     "{{ ssl_certificate_authority.ssl_group }}"
+    mode:      "644"
+  delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+  become:      yes
+  register:     gen_server_certificate
 
 - name: Sign private Key with intermediate-key for server-certificates
   community.crypto.x509_certificate:

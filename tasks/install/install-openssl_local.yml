@@ -4,5 +4,16 @@
     name: [ "openssl", "python3-cryptography" ]
     state: present
     update_cache: no
-  run_once: yes
   become: yes
+
+- name: "Generate local directories"
+  file:
+    path: "{{ item.directory }}"
+    owner: "root"
+    group: "root"
+    state: directory
+    mode: "{{ item.mode }}"
+  become: yes
+  with_items:
+    - { "directory": "/etc/ssl/csr", "mode": "0755" }
+    - { "directory": "/etc/ssl/private", "mode": "0700" }

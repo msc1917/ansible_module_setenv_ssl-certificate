@@ -1,0 +1,105 @@
+---
+- name: Define variables
+  ansible.builtin.set_fact:
+    var:
+      module_certificate_type:                   "etcd-certificates"
+      module_common_name:                        "server-cert-etc"
+      module_root-certificate_name:              "etcd-ca"
+      module_certificate_name:                   "server-cert-etc"
+      module_dir_local_basedir:                   "{{ dir_local_basedir                   | default("/etc/ssl") }}"
+      module_dir_local_private_key:               "{{ dir_local_private_key               | default(module_dir_local_basedir + "/private") }}"
+      module_file_local_private_key:              "{{ file_local_private_key              | default(module_certificate_name + ".pem") }}"
+      module_dir_local_certificate:               "{{ dir_local_certificate               | default(module_dir_local_basedir + "/crt") }}"
+      module_file_local_certificate:              "{{ file_local_certificate              | default(module_certificate_name + ".crt") }}"
+      module_dir_local_certificate_request:       "{{ dir_local_certificate_request       | default(module_dir_local_basedir + "/csr") }}"
+      module_file_local_certificate_request:      "{{ file_local_certificate_request      | default(module_certificate_name + "." + inventory_hostname + ".csr") }}"
+      module_dir_local_root_certificate:          "{{ dir_local_root_certificate          | default("/usr/local/share/ca-certificates") }}"
+      module_file_local_root_certificate:         "{{ file_local_root_certificate         | default(module_root-certificate_name + ".crt") }}"
+      module_dir_ca_basedir:                      "{{ dir_ca_basedir                      | default(default_path.data_path + "/server/ssl-ca/" + ssl_certificate_authority.ssl_certificate.organizationName) }}"
+      module_dir_ca_private_key:                  "{{ dir_ca_private_key                  | default(module_dir_ca_basedir + "/server/private") }}"
+      module_file_ca_private_key:                 "{{ file_ca_private_key                 | default(module_certificate_name + "." + inventory_hostname + ".key") }}"
+      module_dir_ca_certificate:                  "{{ dir_ca_certificate                  | default(module_dir_ca_basedir + "/server/certs") }}"
+      module_file_ca_certificate:                 "{{ file_ca_certificate                 | default(module_certificate_name + "." + inventory_hostname + ".crt") }}"
+      module_dir_ca_certificate_archive:          "{{ dir_ca_certificate_archive          | default(module_dir_ca_basedir + "/server/newcerts") }}"
+      module_file_ca_certificate_archive:         "{{ file_ca_certificate_archive         | default(module_certificate_name + "." + inventory_hostname + "." + ansible_date_time.iso8601_basic_short + "." + ".crt") }}"
+      module_dir_ca_root_certificate:             "{{ dir_ca_root_certificate             | default(module_dir_ca_basedir + "/root-ca/certs") }}"
+      module_file_ca_root_certificate:            "{{ file_ca_root_certificate            | default("") }}"
+      module_dir_ca_intermediate_certificate:     "{{ dir_ca_intermediate_certificate     | default(module_dir_ca_basedir + "/intermediate-ca/certs") }}"
+      module_file_ca_intermediate_certificate:    "{{ file_ca_intermediate_certificate    | default("") }}"
+      module_dir_ca_certificate_request:          "{{ dir_ca_certificate_request          | default(module_dir_ca_basedir + "/server/csr") }}"
+      module_file_ca_certificate_request:         "{{ file_ca_certificate_request         | default("") }}"
+      module_dir_samba_basedir:                   "{{ dir_samba_basedir                   | default(ssl_certificate_authority.sambadir + "/" + ssl_certificate_authority.ssl_certificate.organizationName) }}"
+      module_dir_samba_private_key:               "{{ dir_samba_private_key               | default(module_dir_samba_basedir + "/private") }}"
+      module_file_samba_private_key:              "{{ file_samba_private_key              | default("") }}"
+      module_dir_samba_certificate:               "{{ dir_samba_certificate               | default(module_dir_samba_basedir + "/server-certificate") }}"
+      module_file_samba_certificate:              "{{ file_samba_certificate              | default("") }}"
+      module_dir_samba_ca_certificate:            "{{ dir_samba_ca_certificate            | default(module_dir_samba_basedir + "/root-certificate") }}"
+      module_file_samba_ca_certificate:           "{{ file_samba_ca_certificate           | default("") }}"
+      module_dir_samba_intermediate_certificate: " {{ dir_samba_intermediate_certificate  | default(module_dir_samba_basedir + "/intermediate-certificate") }}"
+      module_file_samba_intermediate_certificate: "{{ file_samba_intermediate_certificate | default("") }}"
+      module_dir_samba_certificate_request:       "{{ dir_samba_certificate_request       | default(module_dir_samba_basedir + "/csr") }}"
+      module_file_samba_certificate_request:      "{{ file_samba_certificate_request      | default("") }}"
+
+- name: Generate CSR for server-certificates
+  community.crypto.openssl_csr:
+    path:                     "/etc/ssl/csr/{{ module_certificate_name }}.{{ inventory_hostname }}.csr"
+    privatekey_path:          "/etc/ssl/private/server-cert.pem"
+    common_name:              "{{ inventory_hostname }}"
+    organization_name:        "{{ ssl_certificate_authority.ssl_certificate.organizationName }}"
+    organizational_unit_name: "{{ ssl_certificate_authority.ssl_certificate.organizationalUnitName }}"
+    email_address:            "{{ ssl_certificate_authority.ssl_certificate.emailAddress }}"
+    country_name:             "{{ ssl_certificate_authority.ssl_certificate.countryName }}"
+    state_or_province_name:   "{{ ssl_certificate_authority.ssl_certificate.stateOrProvinceName }}"
+    locality_name:            "{{ ssl_certificate_authority.ssl_certificate.localityName }}"
+    subject_alt_name:         "{{ ( act_dommain_list | map('regex_replace', '^', 'DNS:') | list ) + ( act_ip_address | map('regex_replace', '^', 'IP:') | list ) }}"
+    basic_constraints:
+      - CA:FALSE
+    key_usage:
+      - keyCertSign
+      - digitalSignature
+    owner:                    "root"
+    group:                    "root"
+    mode:                     "400"
+    select_crypto_backend:    "cryptography"
+    ocsp_must_staple:         "true"
+  become:       yes
+  register:     gen_server_certificate
+
+    - name: Fetch csr file from server
+      fetch:
+        src: "/etc/ssl/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+        dest: "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+        flat: yes
+      become: yes
+
+    - name: Copy csr file to ca-host
+      copy:
+        src: "{{ inventory_dir }}/dynamic_vars/files/config/ssl/server-cert/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+        dest: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+        owner: "{{ ssl_certificate_authority.ssl_user }}"
+        group: "{{ ssl_certificate_authority.ssl_group }}"
+        mode: "644"
+      delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+      become: yes
+
+    - name: Sign private Key with intermediate-key for server-certificates
+      community.crypto.x509_certificate:
+        path: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/certs/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+        csr_path: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/csr/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.csr"
+        privatekey_path: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/server/private/{{ ssl_certificate_authority.ca_definition.layer3.certificate_name }}.{{ inventory_hostname }}.pem"
+        provider: "ownca"
+        ownca_not_after: "+{{ ssl_certificate_authority.ca_definition.layer3.keeptime }}d"
+        ownca_not_before: "+0d"
+        ownca_create_subject_key_identifier: "always_create"
+        ownca_path: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/certs/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+        ownca_privatekey_path: "{{ default_path.data_path }}/ssl-ca/{{ ssl_certificate_authority.ssl_certificate.organizationName }}/intermediate-ca/private/{{ ssl_certificate_authority.master_intermediate_cert }}.{{ ssl_certificate_authority.ssl_certificate.organizationName}}.pem"
+        ownca_privatekey_passphrase: "{{ ssl_certificate_authority.ca_definition.layer2.passphrase }}"
+        owner: "{{ ssl_certificate_authority.ssl_user }}"
+        group: "{{ ssl_certificate_authority.ssl_group }}"
+        mode: "444"
+        select_crypto_backend: "cryptography"
+        return_content: "yes"
+      delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
+      become: yes
+      register: server_certificate
+      when: gen_server_certificate.changed

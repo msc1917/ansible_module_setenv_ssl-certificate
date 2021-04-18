@@ -3,7 +3,8 @@
   apt:
     name: [ "openssl", "python3-openssl", "python3-cryptography" ]
     state: present
-    update_cache: no
+    update_cache:     "{{ apt_proxy.update_repo | default(no) }}"
+    cache_valid_time: "{{ apt_proxy.update_cache | default(0) }}"
   delegate_to: "{{ ssl_certificate_authority.ssl_ca_host }}"
   run_once: yes
   become: yes
